@@ -72,3 +72,8 @@ jobs:
 
       - name: Push image
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/calculation-assignment:latest
+
+
+
+
+        
