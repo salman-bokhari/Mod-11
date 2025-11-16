@@ -1,6 +1,7 @@
 import pytest
 from app.factory import OperationFactory, Add, Sub, Multiply, Divide
 from app.schemas import CalculationCreate, OpType
+from pydantic import ValidationError
 
 def test_factory_add():
     op = OperationFactory.get_operation('Add')
@@ -19,3 +20,7 @@ def test_schema_validation_divide_zero():
 def test_schema_ok_add():
     payload = CalculationCreate(a=2, b=3, op_type=OpType.Add)
     assert payload.a == 2 and payload.b == 3 and payload.op_type == OpType.Add
+
+def test_schema_validation_divide_zero():
+    with pytest.raises(ValidationError):
+        CalculationCreate(a=1, b=0, op_type=OpType.Divide)
