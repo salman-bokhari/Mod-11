@@ -6,21 +6,28 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app, get_db
 from app.models import Base
 
-# Get DATABASE_URL from env (should be set in GH Actions)
+# DATABASE_URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
-# Setup engine with timeout to avoid hangs
+# Prepare connect_args
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+else:
+    connect_args["connect_timeout"] = 5
+
+# Engine setup
 engine = create_engine(
     DATABASE_URL,
-    connect_args={'check_same_thread': False} if DATABASE_URL.startswith('sqlite') else {},
-    pool_pre_ping=True,
-    connect_args={'connect_timeout': 5} if not DATABASE_URL.startswith('sqlite') else {}
+    connect_args=connect_args,
+    pool_pre_ping=True
 )
 
 SessionTesting = sessionmaker(bind=engine)
 
-# Create tables for tests
-Base.metadata.create_all(bind=engine)
+# Create tables (for SQLite)
+if DATABASE_URL.startswith("sqlite"):
+    Base.metadata.create_all(bind=engine)
 
 # Fixture for DB session
 @pytest.fixture(scope="function")
@@ -31,10 +38,10 @@ def db_session():
     finally:
         session.close()
 
-# Fixture for FastAPI test client
+# Fixture for FastAPI client
 @pytest.fixture(scope="function")
 def client(db_session):
-    # Override get_db to use test session
+    # Override get_db dependency
     def override_get_db():
         try:
             yield db_session
