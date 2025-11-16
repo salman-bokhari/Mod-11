@@ -1,6 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, field_validator
-
+from pydantic import BaseModel, field_validator, model_validator
 
 class OpType(str, Enum):
     Add = "Add"
@@ -8,20 +7,16 @@ class OpType(str, Enum):
     Multiply = "Multiply"
     Divide = "Divide"
 
-
 class CalculationCreate(BaseModel):
     a: float
     b: float
     op_type: OpType
 
-    @field_validator("b")
-    def validate_divide_zero(cls, value, info):
-        # info.data contains already-parsed fields
-        op = info.data.get("op_type")
-        if op == OpType.Divide and value == 0:
+    @model_validator(mode="after")
+    def check_division(self):
+        if self.op_type == OpType.Divide and self.b == 0:
             raise ValueError("Division by zero is not allowed.")
-        return value
-
+        return self
 
 class CalculationRead(BaseModel):
     id: int
