@@ -37,6 +37,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Debug Postgres logs
+        run: docker logs $(docker ps -aqf "ancestor=postgres:15")
+
+
       - name: Wait for Postgres
         run: |
           timeout 60 bash -c 'until pg_isready -h postgres -p 5432; do sleep 1; done'
