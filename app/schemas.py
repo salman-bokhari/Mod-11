@@ -1,31 +1,35 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, field_validator
 from enum import Enum
 
-class OpType(str, Enum):
-    Add = 'Add'
-    Sub = 'Sub'
-    Multiply = 'Multiply'
-    Divide = 'Divide'
+
+class OperationType(str, Enum):
+    Add = "Add"
+    Sub = "Sub"
+    Multiply = "Multiply"
+    Divide = "Divide"
+
 
 class CalculationCreate(BaseModel):
-    a: float = Field(..., description='Left operand')
-    b: float = Field(..., description='Right operand')
-    op_type: OpType
+    a: float
+    b: float
+    type: OperationType
 
-    @validator('b')
-    def check_division_by_zero(cls, v, values):
-        # only apply when op_type is Divide
-        op = values.get('op_type')
-        if op == OpType.Divide and v == 0:
-            raise ValueError('b (divisor) cannot be zero for Divide operation')
-        return v
+    # Validate division by zero
+    @field_validator("b")
+    def validate_divide_zero(cls, value, values):
+        # If "type" is Divide AND b == 0 → raise ValueError
+        if "type" in values and values["type"] == OperationType.Divide and value == 0:
+            raise ValueError("Division by zero is not allowed.")
+        return value
+
 
 class CalculationRead(BaseModel):
     id: int
     a: float
     b: float
-    op_type: OpType
-    result: float | None = None
+    type: OperationType
+    result: float
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
