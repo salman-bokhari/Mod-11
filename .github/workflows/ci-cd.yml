@@ -9,20 +9,21 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+
     services:
-      postgres:
+      db:
         image: postgres:15
+        ports:
+          - 5432:5432
         env:
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: testdb
-        ports:
-          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U testuser -d testdb"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U testuser -d testdb -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - uses: actions/checkout@v4
@@ -37,23 +38,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Debug Postgres logs
-        run: docker logs $(docker ps -aqf "ancestor=postgres:15")
-
-
-      - name: Wait for Postgres
+      - name: Wait for DB
         run: |
-          timeout 60 bash -c 'until pg_isready -h postgres -p 5432; do sleep 1; done'
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432
+            if [ $? -eq 0 ]; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            sleep 2
+          done
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://testuser:testpass@postgres:5432/testdb
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
         run: |
           pytest -q
 
   docker:
     needs: tests
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -62,12 +68,7 @@ jobs:
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/calculation-assignment:latest .
 
       - name: Log in to Docker Hub
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/calculation-assignment:latest
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/calculation-assignment:latest
