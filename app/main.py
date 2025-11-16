@@ -8,11 +8,12 @@ from .crud import create_calculation, get_calculation
 
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./test.db')
 
-# Combine connect_args
+# Prepare a single connect_args dict (no duplicate keyword)
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
 else:
+    # for psycopg2 compatible URLs, set a small connect timeout so tests don't hang
     connect_args["connect_timeout"] = 5
 
 engine = create_engine(
@@ -27,6 +28,8 @@ app = FastAPI(title='Calculation Service (for assignment)')
 
 @app.on_event("startup")
 def on_startup():
+    # Create SQLite tables automatically for local tests/dev.
+    # For Postgres in CI, tests use per-test table creation or rely on the integration fixture.
     if DATABASE_URL.startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
 
