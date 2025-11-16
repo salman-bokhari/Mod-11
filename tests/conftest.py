@@ -23,9 +23,9 @@ engine = create_engine(
 
 SessionTesting = sessionmaker(bind=engine)
 
-# For sqlite local tests, create tables here; for CI with Postgres, tests can create/drop
-if DATABASE_URL.startswith("sqlite"):
-    Base.metadata.create_all(bind=engine)
+# ⭐ ALWAYS DROP + CREATE TABLES for TEST DATABASE (sqlite OR postgres)
+Base.metadata.drop_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -37,7 +37,7 @@ def db_session():
 
 @pytest.fixture(scope="function")
 def client(db_session):
-    # override dependency so API uses our test session
+
     def override_get_db():
         try:
             yield db_session
@@ -45,7 +45,8 @@ def client(db_session):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+
     with TestClient(app) as c:
         yield c
-    # cleanup override
+
     app.dependency_overrides.pop(get_db, None)
